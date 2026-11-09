@@ -12,10 +12,13 @@ PORT = 8080
 all: audit build run test
 
 # 1. Verification and Sanity Sweeps
+
 audit:
 	@echo "=== [1/5] RUNNING CRITICAL PRE-FLIGHT DEPENDENCY AUDITS ==="
+	@./generate_certs.sh
 	@python3 verify_dependencies.py
-	@if [ ! -d "$(TARGET_DATA_DIR)" ]; then \
+	@python3 finalize_production.py
+
 		echo "[*] Creating localized sandboxed database data slice..."; \
 		mkdir -p $(TARGET_DATA_DIR); \
 		chown -R 999:999 $(TARGET_DATA_DIR) 2>/dev/null || true; \
