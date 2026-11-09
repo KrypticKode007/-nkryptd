@@ -1,0 +1,4 @@
+security_opt:
+  - apparmor=docker-nkryptd-policy
+  - no-new-privileges:true
+  
