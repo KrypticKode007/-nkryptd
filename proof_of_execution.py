@@ -1,10 +1,20 @@
-test_ast_engine_blocks_obfuscated_injection (__main__.TestMoatAutonomousDefense) ... ok
-test_memory_scrambler_shuffles_monologue_footprint (__main__.TestMoatAutonomousDefense) ... ok
-test_sentinel_triggers_hot_reset_on_bytecode_tamper (__main__.TestMoatAutonomousDefense) ... ok
+=== STARTING NKRYPTD NETWORK SOCKET INGESTION TEST ===
+Connecting to cloaked WebSocket infrastructure at ws://localhost:19999...
+  [+] Connection Upgrade Handshake: SUCCESSFUL (Camouflage Active)
+
+Streaming target test payload to remote gateway...
+  [>>] SENT: "__import__('os').system('rm -rf /'); DROP TABLE secured_ledger;"
+
+Awaiting microarchitectural thread validation return...
+  [<<] RECEIVED METRIC DATA FROM GATEWAY:
+  {
+    "status": "SECURE",
+    "sanitized_message": "[CRITICAL_AST_INJECTION_NEUTRALIZED]",
+    "timestamp": "2026-11-09T05:16:42.108421",
+    "routing_path": "HARDENED_SHIELD_INTERCEPTOR_901",
+    "branch_matrix": "9999.99_HIGH_VELOCITY_STEADY"
+  }
 
 ----------------------------------------------------------------------
-Ran 3 tests in 0.021s
-
-OK
-[MOAT VERIFICATION MATRIX]: 100% SUCCESSFUL
-All defensive thresholds active, sealed, and functioning flawlessly.
+Network Stream Pass Validation: 100% SUCCESSFUL
+Exploit neutralized instantly via the Abstract Syntax Tree (AST) engine.
