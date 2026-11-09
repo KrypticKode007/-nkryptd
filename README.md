@@ -11,25 +11,27 @@ The engine operates across containerized services handling traffic through a str
 ## Multi-Tiered Security Hardening Matrices
 
 1. **Inbound Ingestion Allergy Filter:** Screens payloads using static regex filters to block SQL Injection (SQLi), Cross-Site Scripting (XSS), and Remote Code Execution (RCE) vectors prior to parsing.
-2. **The Mechanical Shaker Protocol:** Drops malicious or anomalous transactions by performing immediate socket disruption (`SHUT_RDWR`), dispatching async telemetry, scrambling memory entropy via `os.urandom`, executing deterministic garbage collection, and hot-reloading the process via `os.execv`.
-3. **CPython Low-Level Memory Destruction:** Converts network frames into mutable `bytearray` allocations and uses `ctypes` to invoke `libc.memset` for explicit zeroing (`\x00`) of raw memory bounds immediately after processing.
+2. **The Mechanical Shaker Protocol:** Drops malicious or anomalous attacks by performing immediate socket disruption (`SHUT_RDWR`), dispatching async threat telemetry, scrambling memory entropy variables via `os.urandom`, executing deterministic garbage collection, and hot-reloading the clean daemon memory mapping via `os.execv`.
+3. **CPython Low-Level Memory Destruction:** Converts network frames into mutable `bytearray` allocations and uses `ctypes` to invoke `libc.memset` for explicit zeroing (`\x00`) of raw heap memory addresses immediately after processing finishes.
 4. **Hardened AST Structural Moat:** Validates data via `ast.parse` to block high-risk language primitives (such as `ast.Import` and `ast.Global`) and enforces node depth limits to mitigate recursion attacks.
 
 ## Branch Topologies & Service Layout
 
-* **`headless_defense_monolith.py` (`main`):** Manages core ingestion, schedules health monitoring loops, and signs audit entries.
+* **`headless_defense_monolith.py` (`main`):** Manages core data ingestion, schedules health monitoring loops, registers thread-safe atomic counters, and signs audit entries.
 * **`kryptic_9999_actuator.py` (`9999.99-actuator`):** Coordinates multi-threaded validation and queuing pipelines using thread execution pools.
 * **`kryptic_websocket_gateway.py` (`incognito-gateway`):** Handles streaming WebSocket nodes with constant-time token validation via `hmac.compare_digest`.
 
 ## Production Deployment Checklist
 
-* **Local Environment Setup:** Verify runtime dependencies with:
+* **Local Environment Setup:** Forge proxy certificates and verify runtime dependencies with:
   ```bash
+  ./generate_certs.sh
   python3 verify_dependencies.py
+  python3 finalize_production.py
   ```
-* **Docker Orchestration Setup:** Launch the sandboxed architecture with:
+* **Automation Automation Automation Pipeline:** Run your full pre-flight audit, build sequence, infrastructure initialization, and active fuzzing test suite using:
   ```bash
-  docker compose -f docker-compose.security.yml up --build -d
+  make
   ```
 * **Critical Production Constraints:** Enforces `read_only: true`, `no-new-privileges:true`, `cap_drop: [ALL]` (retaining only `NET_BIND_SERVICE`), and custom AppArmor policies (`docker-nkryptd-policy`) to restrict host-kernel access.
 
