@@ -1,20 +1,33 @@
-FROM python:3.11-slim AS builder
-ENV PIP_DISABLE_PIP_VERSION_CHECK=1 PYTHONDONTWRITEBYTECODE=1
-WORKDIR /build
-COPY requirements.txt .
-RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+# Stage 1: Build dependencies cleanly
+FROM python:3.11-alpine AS builder
 
-FROM python:3.11-slim AS runtime
-ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
+WORKDIR /build
+RUN apk add --no-cache gcc musl-dev libffi-dev openssl-dev
+COPY requirements.txt .
+RUN pip install --no-cache-dir --user -r requirements.txt
+
+# Stage 2: Pristine runtime image isolation
+FROM python:3.11-alpine
+
 WORKDIR /app
-RUN groupadd --system --gid 10002 nkryptd && \
-    useradd --system --uid 10002 --gid nkryptd --home-dir /nonexistent --shell /usr/sbin/nologin nkryptd && \
-    mkdir -p /data && chown -R 10002:10002 /data
-COPY --from=builder /install /usr/local
-COPY --chown=10002:10002 headless_defense_monolith.py kryptic_9999_actuator.py kryptic_websocket_gateway.py ./
-USER 10002:10002
-ENV NKRYPTD_DATA_DIR=/data
-EXPOSE 8080 19999
-HEALTHCHECK --interval=20s --timeout=3s --start-period=5s --retries=3 \
-  CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=2)" || exit 1
-CMD ["python", "headless_defense_monolith.py"]
+
+# Create a restricted, unprivileged runtime group and user account
+RUN addgroup -g 999 nkryptd && \
+    adduser -D -u 999 -G nkryptd -s /bin/false nkryptd
+
+# Retrieve verified python libraries from builder stage
+COPY --from=builder /root/.local /home/nkryptd/.local
+COPY headless_defense_monolith.py scrambler.py ./
+
+# Tighten file system permissions: Read-only execution mapping
+RUN chown -R root:root /app && \
+    chmod -R 555 /app && \
+    mkdir -p /app/data && \
+    chown -R nkryptd:nkryptd /app/data && \
+    chmod 700 /app/data
+
+USER nkryptd
+ENV PATH=/home/nkryptd/.local/bin:$PATH
+
+EXPOSE 8080
+ENTRYPOINT ["python", "-u", "headless_defense_monolith.py"]
