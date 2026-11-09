@@ -1,0 +1,48 @@
+# =====================================================================
+# STAGE 1: CRYPTOGRAPHIC DEPLOYMENT BUILDER
+# =====================================================================
+FROM python:3.11-slim AS builder
+
+WORKDIR /compiler_box
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    libc-dev \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir --user -r requirements.txt
+
+# =====================================================================
+# STAGE 2: BOTTOMLESS PRODUCTION RUNTIME 
+# =====================================================================
+FROM python:3.11-slim AS runner
+
+WORKDIR /nkryptd_enclave
+
+# Install core TPM utilities for hardware pass-through integration
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    tpm2-tools \
+    && rm -rf /var/lib/apt/lists/*
+
+# Establish non-privileged operational user boundaries
+RUN groupadd -g 10002 defense_group && \
+    useradd -r -u 10002 -g defense_group defense_user
+
+# Pull compiled cryptography binaries from builder layer
+COPY --from=builder /root/.local /home/defense_user/.local
+COPY . .
+
+RUN chown -R defense_user:defense_group /nkryptd_enclave
+ENV PATH=/home/defense_user/.local/bin:$PATH
+
+USER defense_user
+
+# Automated container protection healthcheck loop
+HEALTHCHECK --interval=15s --timeout=3s --retries=3 \
+  CMD python3 -c "from headless_defense_monolith import HardenedASTPayloadMoat; \
+      moat = HardenedASTPayloadMoat(); \
+      assert moat.secure_parse_payload('health_check') == 'health_check'" || exit 1
+
+CMD ["python", "headless_defense_monolith.py"]
