@@ -32,8 +32,12 @@ build:
 
 # 3. Fire Up Active Infrastructure Topology
 run:
-	@echo "\n=== [3/5] RE-LAUNCHING DEFENSIVE MONOLITH SANDBOX INSTANCE ==="
+	COMPOSE_FILE = docker-compose.security-50x.yml
+
+run:
+	@echo "\n=== [3/5] RE-LAUNCHING HIGH-DENSITY BALANCED REPO CLUSTER ==="
 	docker compose -f $(COMPOSE_FILE) up -d
+
 	@echo "[*] Awaiting network port listener validation phase..."
 	@sleep 2
 
