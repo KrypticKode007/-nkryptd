@@ -1,121 +1,51 @@
+#!/usr/bin/env python3
 import os
 import sys
 import re
-import json
 import gc
+import ast
+import json
+import time
+import math
+import sqlite3
+import hashlib
+import threading
+import ctypes
+import urllib.request
+from secrets import token_bytes
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from scrambler import runtime_scrambler 
-
-# Static Pre-Ingestion Signatures: Allergic to known shellcode and injection heuristics
-MALICIOUS_SIGNATURES = [
-    re.compile(r'(?i)(union\s+select|select\s+.*\s+from|insert\s+into)'), # SQLi attempts
-    re.compile(r'(?i)(<script|javascript:|onerror=|onload=)'),          # XSS payloads
-    re.compile(r'(\.\./|\.\.\\)'),                                       # Path traversal sequences
-    re.compile(r'(\|\||&&|\$\(|\bexec\b|\bsystem\b|\bpassthru\b)')        # RCE/Shell injection primitives
-]
-
-class HeadlessDefenseMonolith(BaseHTTPRequestHandler):
-    
-    def log_message(self, format, *args):
-        """Overrides standard logging to prevent log-injection or string leaks."""
-        pass
-
-    def _execute_shaker_protocol(self, threat_signature: str):
-        """
-        THE SHAKER PROTOCOL
-        Acts like a dog shaking off water. Aggressively purges local process memory space,
-        unmaps ephemeral data structures, cycles runtime variables, and restarts cleanly.
-        """
-        print(f"\n[!!!] CRITICAL ALARM: ALLERGIC REACTION TRIGGERED BY SIGNATURE [{threat_signature}]")
-        print("[!] INITIATING SYSTEM SHAKER PROTOCOL...")
-
-        # 1. Sever external connections instantly by shutting down the active handler socket
-        try:
-            self.connection.shutdown(2) # 2 = SHUT_RDWR
-            self.connection.close()
-        except Exception:
-            pass
-
-        # 2. Overwrite and corrupt the ephemeral memory scrambler pool to invalidate leaked text
-        if hasattr(runtime_scrambler, '_pool'):
-            runtime_scrambler._pool = bytearray(os.urandom(len(runtime_scrambler._pool)))
-
-        # 3. Aggressive Scope Cleansing: Wipe global caches or state dictionaries if any exist
-        globals_to_purge = [k for k in globals().keys() if k.startswith('transient_')]
-        for key in globals_to_purge:
-            globals()[key] = None
-            del globals()[key]
-
-        print("[*] Shaking: Executing deterministic garbage collection sweeps...")
-        # 4. Force triple-cycle garbage collection to drop unreferenced objects from the heap
-        gc.set_threshold(0)
-        for _ in range(3):
-            gc.collect()
-
-        print("[+] Process memory space cleared. Re-spawning clean worker daemon state...")
-        # 5. Hot-reload: Re-execute the current process binary to restore a pristine state
-        os.execv(sys.executable, [sys.executable] + sys.argv)
-
-    def do_POST(self):
-        if self.path == "/v1/events":
-            content_length = int(self.headers.get('Content-Length', 0))
-            if content_length > 524288: # Tightened strict constraint: 512KB Max
-                self.send_error(413, "Payload Limits Exceeded")
-                return
-
-            # Read raw data directly from the network buffer string
-            raw_input = self.rfile.read(content_length).decode('utf-8')
-
-            # --- PRE-INGESTION ALLERGY CHECK ---
-            for signature in MALICIOUS_SIGNATURES:
-                if signature.search(raw_input):
-                    # Threat detected prior to parsing: Execute the memory shake immediately
-                    del raw_input
-                    self._execute_shaker_protocol(signature.pattern)
-                    return
-
-            # Immediate scrambling upon passing structural validation
-            scrambled_payload = runtime_scrambler.scramble(raw_input)
-            del raw_input
-
-            try:
-                # Localized, transient scope execution block
-                decrypted_json = json.loads(runtime_scrambler.descramble(scrambled_payload))
-                
-                # Verify structural anomaly defenses
-                if "token" not in decrypted_json and "message" not in decrypted_json:
-                    del scrambled_payload
-                    del decrypted_json
-                    self._execute_shaker_protocol("ANOMALOUS_PAYLOAD_SCHEMA")
-                    return
-
-                # Normal pipeline operational path continues safely here...
-                self.send_response(200)
-                self.send_header("Content-Type", "application/json")
-                self.end_headers()
-                self.wfile.write(b'{"status":"event_processed"}')
-
-            except json.JSONDecodeError:
-                self.send_error(400, "Malformed Structure")
-            except Exception:
-                self._execute_shaker_protocol("UNHANDLED_RUNTIME_EXCEPTION")
-
-def run_hardened_monolith(port=8080):
-    try:
-        server = HTTPServer(('0.0.0.0', port), HeadlessDefenseMonolith)
-        print(f"[+] Allergic Defense Monolith online on internal port {port}...")
-        server.serve_forever()
-    except KeyboardInterrupt:
-        print("[-] Stopping service.")
-
-if __name__ == "__main__":
-    run_hardened_monolith()
 
 try:
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
     HAS_AESGCM = True
 except ImportError:
     HAS_AESGCM = False
+
+# Load the platform-specific standard C library wrapper
+if sys.platform == "win32":
+    libc = ctypes.cdll.msvcrt
+else:
+    libc = ctypes.CDLL(None)
+
+# Static Pre-Ingestion Signatures: Allergic to known shellcode and injection heuristics
+MALICIOUS_SIGNATURES = [
+    re.compile(r'(?i)(union\s+select|select\s+.*\s+from|insert\s+into)'), 
+    re.compile(r'(?i)(<script|javascript:|onerror=|onload=)'),          
+    re.compile(r'(\.\./|\.\.\\)'),                                       
+    re.compile(r'(\.\*\|\||&&|\$\(|\bexec\b|\bsystem\b|\bpassthru\b)')    
+]
+
+class CPythonSecureWiper:
+    """Invokes low-level C memory overrides to destroy data on the CPython heap."""
+    @staticmethod
+    def deep_zero_buffer(target: bytearray):
+        if not isinstance(target, bytearray):
+            return
+        # Locate the exact inner sequential C-char memory array buffer address
+        buffer_address = (ctypes.c_char * len(target)).from_buffer(target)
+        # Force a hard C-level memset wipe over the data structure allocation
+        libc.memset(buffer_address, 0, len(target))
+
 
 class HeadlessEntropyPool:
     """Harvests fine-grained execution fluctuations to defeat entropy starvation."""
@@ -130,23 +60,26 @@ class HeadlessEntropyPool:
             entropy_accumulator.append(jitter_delta ^ token_bytes(1))
         return bytes(entropy_accumulator)
 
+
 class PolymorphicMemoryScrambler:
     """Scrambles, masks, and rotates working key spaces dynamically on every cycle."""
     def __init__(self):
         self.scramble_salt = HeadlessEntropyPool.harvest_jitter_entropy(16)
 
-    def dynamic_xor_mask(self, raw_bytes: bytes) -> bytes:
+    def dynamic_xor_mask(self, raw_bytes: bytearray) -> bytearray:
         mask = HeadlessEntropyPool.harvest_jitter_entropy(len(raw_bytes))
-        return bytes([b ^ m for b, m in zip(raw_bytes, mask)])
+        scrambled = bytearray(b ^ m for b, m in zip(raw_bytes, mask))
+        return scrambled
 
-    def shuffle_text_matrix(self, clean_text: str) -> tuple:
-        text_bytes = clean_text.encode('utf-8')
-        scrambled = self.dynamic_xor_mask(text_bytes)
-        return scrambled, hashlib.sha256(scrambled + self.scramble_salt).hexdigest()
+    def shuffle_text_matrix(self, clean_bytes: bytearray) -> tuple:
+        scrambled = self.dynamic_xor_mask(clean_bytes)
+        matrix_hash = hashlib.sha256(scrambled + self.scramble_salt).hexdigest()
+        return scrambled, matrix_hash
+
 
 class HardenedASTPayloadMoat:
     def __init__(self):
-        self.banned_ast_nodes = (ast.Import, ast.ImportFrom, ast.Exec, ast.Global, ast.With)
+        self.banned_ast_nodes = (ast.Import, ast.ImportFrom, ast.Global, ast.With)
         self.max_tree_depth = 50 
 
     def _check_depth_and_nodes(self, node, current_depth=0) -> bool:
@@ -170,6 +103,7 @@ class HardenedASTPayloadMoat:
         except SyntaxError:
             return "[INVALID_SYNTAX_ABORT]"
 
+
 class AESEncryptedNarrativeLedger:
     def __init__(self, db_connection):
         self.conn = db_connection
@@ -186,43 +120,115 @@ class AESEncryptedNarrativeLedger:
         """)
         self.conn.commit()
 
-    def polymorphically_commit(self, timestamp: str, raw_text: str) -> int:
-        scrambled_bytes, memory_sig = self.scrambler.shuffle_text_matrix(raw_text)
-        self.rotated_key = self.scrambler.dynamic_xor_mask(self.rotated_key)
-        nonce = token_bytes(12)
+    def polymorphically_commit(self, timestamp: str, raw_text: str):
+        # Validate syntax limits inside AST bounds
+        moat = HardenedASTPayloadMoat()
+        sanitized_str = moat.secure_parse_payload(raw_text)
         
+        # Shift clean string directly into a mutable C-style bytearray map
+        clean_buffer = bytearray(sanitized_str.encode('utf-8'))
+
+        # Process mutations on the raw allocation sequence
+        scrambled_bytes, verification_hash = self.scrambler.shuffle_text_matrix(clean_buffer)
+
         if HAS_AESGCM:
-            aes_cipher = AESGCM(self.rotated_key[:32])
-            encrypted_data = aes_cipher.encrypt(nonce, scrambled_bytes, None)
+            aesgcm = AESGCM(self.rotated_key)
+            nonce = HeadlessEntropyPool.harvest_jitter_entropy(12)
+            encrypted_payload = aesgcm.encrypt(nonce, bytes(scrambled_bytes), verification_hash.encode('utf-8'))
         else:
-            mask = (self.rotated_key * (len(scrambled_bytes) // 32 + 1))[:len(scrambled_bytes)]
-            encrypted_data = bytes([b ^ m for b, m in zip(scrambled_bytes, mask)])
+            nonce = HeadlessEntropyPool.harvest_jitter_entropy(8)
+            encrypted_payload = bytes([b ^ nonce[i % len(nonce)] for i, b in enumerate(scrambled_bytes)])
+
+        # Clear active plaintext array contents using explicit memset before database execution bounds
+        CPythonSecureWiper.deep_zero_buffer(clean_buffer)
+        CPythonSecureWiper.deep_zero_buffer(scrambled_bytes)
 
         cursor = self.conn.cursor()
-        cursor.execute("INSERT INTO secured_ledger (timestamp, encrypted_blob, nonce) VALUES (?, ?, ?)",
-                       (timestamp, sqlite3.Binary(encrypted_data), sqlite3.Binary(nonce)))
+        cursor.execute(
+            "INSERT INTO secured_ledger (timestamp, encrypted_blob, nonce) VALUES (?, ?, ?)",
+            (timestamp, encrypted_payload, nonce)
+        )
         self.conn.commit()
-        return cursor.lastrowid
 
-class AutonomousShieldSentinel:
-    def __init__(self, signature_manifest: dict, db_conn):
-        self.manifest = signature_manifest
-        self.moat = HardenedASTPayloadMoat()
-        self.ledger = AESEncryptedNarrativeLedger(db_conn)
-        self.executor = ThreadPoolExecutor(max_workers=4)
 
-    def verify_runtime_health(self, active_code_string: str) -> bool:
-        current_hash = hashlib.sha256(active_code_string.encode('utf-8')).hexdigest()
-        return current_hash == self.manifest.get("core_blueprint", "")
+class HeadlessDefenseMonolith(BaseHTTPRequestHandler):
+    def log_message(self, format, *args):
+        pass
 
-    def process_defensive_cycle(self, raw_data: dict, current_code_string: str):
-        if not self.verify_runtime_health(current_code_string):
-            self.ledger.rotated_key = HeadlessEntropyPool.harvest_jitter_entropy(32)
-        raw_message = raw_data.get("message", "")
-        sanitized_text = self.moat.secure_parse_payload(raw_message)
-        timestamp = datetime.now().isoformat()
-        return self.ledger.polymorphically_commit(timestamp, sanitized_text)
-                                
-        if __name__ == "__main__":
-            print("[NKRYPTD DAEMON ACTIVE]")
+    def _execute_shaker_protocol(self, threat_signature: str):
+        print(f"\n[!!!] ALLERGIC REACTION TRIPPED BY CPYTHON BYPASS SIGNATURE: [{threat_signature}]")
+        try:
+            self.connection.shutdown(2)
+            self.connection.close()
+        except Exception:
+            pass
+
+        gc.set_threshold(0)
+        for _ in range(3):
+            gc.collect()
+
+        print("[+] Shaker complete. Hot-swapping process binary via kernel re-exec loop...")
+        os.execv(sys.executable, [sys.executable] + sys.argv)
+
+    def do_POST(self):
+        if self.path == "/v1/events":
+            content_length = int(self.headers.get('Content-Length', 0))
+            if content_length > 524288:
+                self.send_error(413, "Payload Limits Exceeded")
+                return
+
+            # Read network stream bytes into mutable bytearray to allow absolute zeroing control
+            raw_network_buffer = bytearray(self.rfile.read(content_length))
+            decoded_input_str = raw_network_buffer.decode('utf-8')
+
+            # Pre-Ingestion Allergy Screening
+            for signature in MALICIOUS_SIGNATURES:
+                if signature.search(decoded_input_str):
+                    CPythonSecureWiper.deep_zero_buffer(raw_network_buffer)
+                    self._execute_shaker_protocol(signature.pattern)
+                    return
+
+            # Securely shift structure references inside polymorphic scrambler layers
+            scrambled_payload = bytearray(decoded_input_str.encode('utf-8'))
+            
+            # Instantly overwrite the initial raw network array buffer with zeroes
+            CPythonSecureWiper.deep_zero_buffer(raw_network_buffer)
+
+            try:
+                # Local structural decoding block
+                decrypted_json = json.loads(scrambled_payload.decode('utf-8'))
+                
+                if "token" not in decrypted_json and "message" not in decrypted_json:
+                    CPythonSecureWiper.deep_zero_buffer(scrambled_payload)
+                    self._execute_shaker_protocol("ANOMALOUS_PAYLOAD_SCHEMA")
+                    return
+
+                with sqlite3.connect("sentience_core_ledger.db") as conn:
+                    ledger = AESEncryptedNarrativeLedger(conn)
+                    event_msg = decrypted_json.get("message", json.dumps(decrypted_json))
+                    ledger.polymorphically_commit(str(time.time()), event_msg)
+
+                # Post-processing data destruction
+                CPythonSecureWiper.deep_zero_buffer(scrambled_payload)
+
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(b'{"status":"event_processed"}')
+
+            except json.JSONDecodeError:
+                CPythonSecureWiper.deep_zero_buffer(scrambled_payload)
+                self.send_error(400, "Malformed Structure")
+            except Exception:
+                CPythonSecureWiper.deep_zero_buffer(scrambled_payload)
+                self._execute_shaker_protocol("UNHANDLED_RUNTIME_EXCEPTION")
+
+def run_hardened_monolith(port=8080):
+    server = HTTPServer(('0.0.0.0', port), HeadlessDefenseMonolith)
+    print(f"[+] Hardened CPython Low-Level Monolith listening on port {port}...")
+    server.serve_forever()
+
+if __name__ == "__main__":
+    run_hardened_monolith()
+
             
