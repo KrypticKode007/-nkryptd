@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  # ---------------------------------------------------------------------
+  # SERVICE 1: CORE SENTINEL DAEMON (Branch: main)
+  # ---------------------------------------------------------------------
+  nkryptd-core:
+    build:
+      context: .
+      dockerfile: Dockerfile.nkryptd
+    container_name: nkryptd-sentinel-active
+    restart: always
+    environment:
+      - ENVIRONMENT=PRODUCTION
+      - KEY_ROTATION_SPEED=MAX
+    volumes:
+      - /opt/enkrypted/vault:/opt/enkrypted/vault
+      - /opt/enkrypted/logs:/opt/enkrypted/logs
+    devices:
+      - /dev/tpmrm0:/dev/tpmrm0 # Direct Hardware TPM 2.0 Silicon Binding Pass-through
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 256M
+    networks:
+      - nkryptd-isolated-mesh
+
+  # ---------------------------------------------------------------------
+  # SERVICE 2: HIGH-SPEED ACTUATOR (Branch: 9999.99-actuator)
+  # ---------------------------------------------------------------------
+  nkryptd-actuator:
+    build:
+      context: .
+      dockerfile: Dockerfile.nkryptd
+    container_name: nkryptd-actuator-9999
+    restart: always
+    command: ["python", "kryptic_9999_actuator.py"]
+    cpu_shares: 2048 # High-priority scheduling allocation for thread-pool tasks
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 512M
+    networks:
+      - nkryptd-isolated-mesh
+
+  # ---------------------------------------------------------------------
+  # SERVICE 3: STEALTH GATEWAY TUNNEL (Branch: incognito-gateway)
+  # ---------------------------------------------------------------------
+  nkryptd-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.nkryptd
+    container_name: nkryptd-gateway-incognito
+    restart: always
+    command: ["python", "kryptic_websocket_gateway.py"]
+    ports:
+      - "19999:19999" # Exposes cloaked websocket listener port to authorized nodes
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 256M
+    networks:
+      - nkryptd-isolated-mesh
+
+networks:
+  nkryptd-isolated-mesh:
+    driver: bridge
+    internal: false # Permits external communication ingress exclusive to port 19999
+    
