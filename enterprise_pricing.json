@@ -1,0 +1,26 @@
+[
+  {
+    "licensing_tier": "ENTERPRISE_MONOLITH_CORE",
+    "deployment_model": "On-Premise Hardware Isolated / Private Enclave",
+    "annual_recurring_revenue_per_node": 250000,
+    "included_allocations": {
+      "active_swarm_rotators": 32,
+      "shield_guard_interceptors": 8,
+      "ast_node_validation_throughput": "Unlimited",
+      "dedicated_tpm_channels": 4
+    },
+    "sla_tier": "Tier-1 Mission Critical 24/7/365 Direct Dev-Line"
+  },
+  {
+    "licensing_tier": "DEFENSE_SECURE_ENCLAVE_MATRIX",
+    "deployment_model": "Air-Gapped Multi-Node / Hardware Cryptographic Bound",
+    "annual_recurring_revenue_per_node": 750000,
+    "included_allocations": {
+      "active_swarm_rotators": 128,
+      "shield_guard_interceptors": 32,
+      "ast_node_validation_throughput": "Asynchronous High-Frequency Burst",
+      "dedicated_tpm_channels": "Hardware Bonded / Full Bus Isolation"
+    },
+    "sla_tier": "Strategic Continuity Protocol / Sovereign Network Isolation Support"
+  }
+]
