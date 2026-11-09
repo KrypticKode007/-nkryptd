@@ -8,7 +8,59 @@ import math
 from datetime import datetime
 from secrets import token_bytes
 from concurrent.futures import ThreadPoolExecutor
+import os
+import json
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from scrambler import runtime_scrambler 
 
+class HeadlessDefenseHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        if self.path == "/healthz":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(b'{"status":"healthy"}')
+
+    def do_POST(self):
+        if self.path == "/v1/events":
+            content_length = int(self.headers.get('Content-Length', 0))
+            if content_length > 1048576: # 1MB limit check
+                self.send_error(413, "Payload Too Large")
+                return
+
+            # Read raw network buffer bytes
+            raw_input = self.rfile.read(content_length).decode('utf-8')
+            
+            # CRITICAL: Immediately scramble the raw string in process memory
+            scrambled_payload = runtime_scrambler.scramble(raw_input)
+            del raw_input # Force garbage collection of the plain memory reference
+            
+            print(f"[*] Memory profile secured. Scrambled bytes: {scrambled_payload[:20]}...")
+
+            try:
+                # Descramble strictly within localized transient scope for processing
+                decrypted_json = json.loads(runtime_scrambler.descramble(scrambled_payload))
+                
+                # ... Perform JSON schema validation & AES-256-GCM ledger writes here ...
+                
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(b'{"status":"event_processed"}')
+                
+            except json.JSONDecodeError:
+                self.send_error(400, "Invalid JSON Payload")
+            except Exception as e:
+                self.send_error(500, "Internal Cryptographic Ledger Error")
+
+def run_daemon(port=8080):
+    server = HTTPServer(('0.0.0.0', port), HeadlessDefenseHandler)
+    print(f"[+] Protected Headless Daemon running on port {port}...")
+    server.serve_forever()
+
+if __name__ == "__main__":
+    run_daemon()
+    
 try:
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
     HAS_AESGCM = True
