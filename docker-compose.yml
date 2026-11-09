@@ -1,65 +1,23 @@
 version: '3.8'
 
 services:
-  # TLS-Terminating Edge Reverse Proxy
-  nginx_edge:
-    image: nginx:alpine
-    container_name: nkryptd-edge-proxy
-    restart: always
-    ports:
-      - "443:443"
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./certs:/etc/nginx/certs:ro
-    depends_on:
-      - headless_daemon
-      - incognito_gateway
-    networks:
-      - nkryptd_secure_mesh
-
-  # Core Ledger Daemon
-  headless_daemon:
+  allergic_monolith:
     build:
       context: .
       dockerfile: Dockerfile.nkryptd
-    container_name: nkryptd-core-daemon
+    container_name: nkryptd-secure-monolith
     restart: always
-    user: "999:999" # Enforce unprivileged running UID
-    environment:
-      - NKRYPTD_DATA_DIR=/data
-      - NKRYPTD_PORT=8080
+    read_only: true # Enforce a completely read-only root system inside container layers
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev # Limit memory writes to low-privilege transient mount points
+    security_opt:
+      - no-new-privileges:true # Lock down process state from pivoting to elevated execution paths
+    cap_drop:
+      - ALL # Drop all default Linux kernel capabilities completely
+    cap_add:
+      - NET_BIND_SERVICE # Allow binding to structural ports safely if scaled down
     volumes:
-      - nkryptd_ledger_data:/data
-    expose:
-      - "8080" # Exposed internally to the proxy only
-    networks:
-      - nkryptd_secure_mesh
-
-  # WebSocket Incognito Gateway
-  incognito_gateway:
-    build:
-      context: .
-      dockerfile: Dockerfile.nkryptd # Reuse standard build layers
-    container_name: nkryptd-websocket-gateway
-    restart: always
-    user: "999:999"
-    command: python kryptic_websocket_gateway.py
-    environment:
-      - NKRYPTD_DATA_DIR=/data
-      - NKRYPTD_GATEWAY_PORT=19999
-      - NKRYPTD_GATEWAY_TOKEN=${NKRYPTD_GATEWAY_TOKEN}
-    volumes:
-      - nkryptd_ledger_data:/data
-    expose:
-      - "19999" # Isolated from public interface mapping
-    networks:
-      - nkryptd_secure_mesh
-
-volumes:
-  nkryptd_ledger_data:
-    name: nkryptd-data # Persistent volume for secure ledger.db and keys
-
-networks:
-  nkryptd_secure_mesh:
-    driver: bridge
-    
+      - ./data:/app/data:rw # Isolate ledger database updates to a dedicated volume slice
+    ports:
+      - "8080:8080"
+      
