@@ -120,7 +120,7 @@ class AutonomousShieldSentinel:
         sanitized_text = self.moat.secure_parse_payload(raw_message)
         timestamp = datetime.now().isoformat()
         return self.ledger.polymorphically_commit(timestamp, sanitized_text)
-
-if __name__ == "__main__":
-    print("[NKRYPTD DAEMON ACTIVE]")
+                                
+        if __name__ == "__main__":
+            print("[NKRYPTD DAEMON ACTIVE]")
             
