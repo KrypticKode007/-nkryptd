@@ -1,0 +1,32 @@
+#include <tunables/global>
+
+profile docker-nkryptd-policy flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+
+  # Explicitly deny access to common interactive shell patterns
+  deny /bin/sh rwx,
+  deny /bin/dash rwx,
+  deny /bin/bash rwx,
+  deny /bin/ash rwx,
+  deny /usr/bin/python* w, # Make the runtime files strictly immutable
+
+  # Restrict raw structural system execution privileges
+  deny capability sys_ptrace,
+  deny capability sys_admin,
+  deny capability sys_chroot,
+
+  # Allow network operational endpoints
+  network inet stream,
+  network inet6 stream,
+
+  # Bound access strictly to the container workspace
+  /app/ r,
+  /app/** r,
+  /app/data/ rw,
+  /app/data/** rwk,
+
+  # Allow execution of the isolated interpreter
+  /usr/bin/python3.11 ix,
+  /lib/ld-musl-*.so* mr,
+  /usr/lib/libpython*.so* mr,
+}
