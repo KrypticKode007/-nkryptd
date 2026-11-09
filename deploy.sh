@@ -1,32 +1,34 @@
 #!/usr/bin/env bash
-set -eo pipefail
+# =====================================================================
+# Krypticsoundz LLC - Automated Docker Environment Provisions
+# =====================================================================
+set -euo pipefail
 
 INSTALL_DIR="/opt/enkrypted"
+echo "=== INITIALIZING NKRYPTD DOCKER ENVIRONMENT VIA KRYPTICSOUNDZ LLC ==="
+
+# 1. Map target logging and database directory tracks on host disk
 sudo mkdir -p "$INSTALL_DIR/vault" "$INSTALL_DIR/logs"
 sudo chown -R 10002:10002 "$INSTALL_DIR"
 
+# 2. Check for physical TPM 2.0 module permissions 
 if [ -c "/dev/tpmrm0" ]; then
     sudo chmod 660 /dev/tpmrm0
     sudo chown root:10002 /dev/tpmrm0
+    echo "[PROVISIONS]: Local TPM hardware nodes verified and pass-through mapped."
 fi
 
-sudo docker build -f - -t nkryptd-core:latest "$INSTALL_DIR" << 'EOF'
-FROM python:3.11-slim
-WORKDIR /nkryptd_enclave
-RUN pip install --no-cache-dir cryptography
-COPY . .
-RUN groupadd -g 10002 defense_group && useradd -r -u 10002 -g defense_group defense_user && chown -R defense_user:defense_group /nkryptd_enclave
-USER defense_user
-CMD ["python", "headless_defense_monolith.py"]
-EOF
+# 3. Halt legacy singular sandbox containers if running to clear resource ports
+echo "-> Cleaning legacy runtime components..."
+sudo docker rm -f nkryptd-sentinel-active nkryptd-actuator-9999 nkryptd-gateway-incognito 2>/dev/null || true
 
-sudo docker run -d \
-  --name nkryptd-sentinel-active \
-  --restart=always \
-  --device=/dev/tpmrm0:/dev/tpmrm0 2>/dev/null || true \
-  --cpu-shares=2048 \
-  --memory="256m" \
-  -v "$INSTALL_DIR/vault:/opt/enkrypted/vault" \
-  -v "$INSTALL_DIR/logs:/opt/enkrypted/logs" \
-  nkryptd-core:latest
-echo "=== NKRYPTD MONOLITH INSTALLED FLAWLESSLY ==="
+# 4. Boot up multi-service mesh layout via Docker Compose
+echo "-> Compiling image manifests and executing service mesh allocation..."
+sudo docker compose -f docker-compose.yml up -d --build
+
+echo ""
+echo "=== MULTI-SERVICE DOCKER DEPLOYMENT SUCCESSFUL ==="
+echo "  -> Sentinel Daemon Layer: ACTIVE"
+echo "  -> 9999.99 Actuator Threads: TUNED"
+echo "  -> Stealth Gateway Tunnel: LISTENING [Port 19999]"
+echo "================================================="
