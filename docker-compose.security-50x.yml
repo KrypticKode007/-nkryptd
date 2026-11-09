@@ -1,0 +1,295 @@
+version: '3.8'
+
+# Shared persistent configuration baselines across all 50 isolated layers
+x-nkryptd-base: &nkryptd-base
+  image: nkryptd:latest
+  restart: always
+  read_only: true
+  security_opt:
+    - apparmor=docker-nkryptd-policy
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  cap_add:
+    - NET_BIND_SERVICE
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,nodev
+  networks:
+    - nkryptd_cluster_mesh
+
+services:
+  # TLS-Terminating Cluster Ingestion Reverse Proxy & Load Balancer
+  nginx_loadbalancer:
+    image: nginx:alpine
+    container_name: nkryptd-cluster-lb
+    restart: always
+    ports:
+      - "443:443"
+    volumes:
+      - ./nginx.loadbalancer.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      - node_01
+      - node_02
+      - node_03
+      - node_04
+      - node_05
+      - node_50 # Ensures backend stack initial mappings spin up prior to routing lines
+    networks:
+      - nkryptd_cluster_mesh
+
+  # Hardened Processing Nodes (01 through 50)
+  node_01:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-01
+    volumes: ["./data/node_01:/app/data:rw"]
+
+  node_02:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-02
+    volumes: ["./data/node_02:/app/data:rw"]
+
+  node_03:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-03
+    volumes: ["./data/node_03:/app/data:rw"]
+
+  node_04:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-04
+    volumes: ["./data/node_04:/app/data:rw"]
+
+  node_05:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-05
+    volumes: ["./data/node_05:/app/data:rw"]
+
+  node_06:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-06
+    volumes: ["./data/node_06:/app/data:rw"]
+
+  node_07:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-07
+    volumes: ["./data/node_07:/app/data:rw"]
+
+  node_08:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-08
+    volumes: ["./data/node_08:/app/data:rw"]
+
+  node_09:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-09
+    volumes: ["./data/node_09:/app/data:rw"]
+
+  node_10:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-10
+    volumes: ["./data/node_10:/app/data:rw"]
+
+  node_11:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-11
+    volumes: ["./data/node_11:/app/data:rw"]
+
+  node_12:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-12
+    volumes: ["./data/node_12:/app/data:rw"]
+
+  node_13:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-13
+    volumes: ["./data/node_13:/app/data:rw"]
+
+  node_14:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-14
+    volumes: ["./data/node_14:/app/data:rw"]
+
+  node_15:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-15
+    volumes: ["./data/node_15:/app/data:rw"]
+
+  node_16:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-16
+    volumes: ["./data/node_16:/app/data:rw"]
+
+  node_17:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-17
+    volumes: ["./data/node_17:/app/data:rw"]
+
+  node_18:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-18
+    volumes: ["./data/node_18:/app/data:rw"]
+
+  node_19:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-19
+    volumes: ["./data/node_19:/app/data:rw"]
+
+  node_20:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-20
+    volumes: ["./data/node_20:/app/data:rw"]
+
+  node_21:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-21
+    volumes: ["./data/node_21:/app/data:rw"]
+
+  node_22:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-22
+    volumes: ["./data/node_22:/app/data:rw"]
+
+  node_23:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-23
+    volumes: ["./data/node_23:/app/data:rw"]
+
+  node_24:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-24
+    volumes: ["./data/node_24:/app/data:rw"]
+
+  node_25:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-25
+    volumes: ["./data/node_25:/app/data:rw"]
+
+  node_26:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-26
+    volumes: ["./data/node_26:/app/data:rw"]
+
+  node_27:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-27
+    volumes: ["./data/node_27:/app/data:rw"]
+
+  node_28:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-28
+    volumes: ["./data/node_28:/app/data:rw"]
+
+  node_29:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-29
+    volumes: ["./data/node_29:/app/data:rw"]
+
+  node_30:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-30
+    volumes: ["./data/node_30:/app/data:rw"]
+
+  node_31:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-31
+    volumes: ["./data/node_31:/app/data:rw"]
+
+  node_32:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-32
+    volumes: ["./data/node_32:/app/data:rw"]
+
+  node_33:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-33
+    volumes: ["./data/node_33:/app/data:rw"]
+
+  node_34:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-34
+    volumes: ["./data/node_34:/app/data:rw"]
+
+  node_35:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-35
+    volumes: ["./data/node_35:/app/data:rw"]
+
+  node_36:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-36
+    volumes: ["./data/node_36:/app/data:rw"]
+
+  node_37:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-37
+    volumes: ["./data/node_37:/app/data:rw"]
+
+  node_38:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-38
+    volumes: ["./data/node_38:/app/data:rw"]
+
+  node_39:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-39
+    volumes: ["./data/node_39:/app/data:rw"]
+
+  node_40:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-40
+    volumes: ["./data/node_40:/app/data:rw"]
+
+  node_41:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-41
+    volumes: ["./data/node_41:/app/data:rw"]
+
+  node_42:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-42
+    volumes: ["./data/node_42:/app/data:rw"]
+
+  node_43:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-43
+    volumes: ["./data/node_43:/app/data:rw"]
+
+  node_44:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-44
+    volumes: ["./data/node_44:/app/data:rw"]
+
+  node_45:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-45
+    volumes: ["./data/node_45:/app/data:rw"]
+
+  node_46:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-46
+    volumes: ["./data/node_46:/app/data:rw"]
+
+  node_47:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-47
+    volumes: ["./data/node_47:/app/data:rw"]
+
+  node_48:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-48
+    volumes: ["./data/node_48:/app/data:rw"]
+
+  node_49:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-49
+    volumes: ["./data/node_49:/app/data:rw"]
+
+  node_50:
+    <<: *nkryptd-base
+    container_name: nkryptd-monolith-50
+    volumes: ["./data/node_50:/app/data:rw"]
+
+networks:
+  nkryptd_cluster_mesh:
+    driver: bridge
+    
