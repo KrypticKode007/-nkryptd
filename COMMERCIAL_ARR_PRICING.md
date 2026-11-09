@@ -1,37 +1,19 @@
-# KRYPTICSOUNDZ LLC — ENTERPRISE COMMERCIAL SPECIFICATION
-## Product Portfolio: nkryptd Post-Algorithmic Memory Protection Matrix
-### Document Status: Commercial Production Release v7.2 (November 2026)
+# KRYPTICSOUNDZ LLC — nkryptd Commercial Specification
 
----
+The following figures and service levels are commercial targets and contractual terms, not technical performance guarantees. Security capabilities must be independently validated in the target deployment.
 
-## 1. Product Commercial Architecture
-The `nkryptd` framework represents a total architectural breakthrough in defensive data engineering for top-tier enterprise environments. Designed specifically to protect headless mission-critical nodes, decentralized backend infrastructures, and highly sensitive processing matrices, `nkryptd` moves beyond vulnerable legacy perimeter firewalls. By shifting security parameters straight to an abstract execution layer, it secures processing pipelines even if an adversary gains root/administrator privileges on the target environment host.
+## Enterprise Core Monolith
+- ARR: **$250,000 per isolated node**.
+- Intended market: enterprise and private-enclave deployments.
+- Technical baseline: AES-256-GCM encrypted SQLite ledger, bounded input validation, and authenticated HTTP event ingestion.
+- TPM key sealing is not enabled by default; it requires platform-specific provisioning and validation.
 
----
+## Defense Secure Enclave Matrix
+- ARR: **$750,000 per node/system block**.
+- Intended market: isolated and air-gapped deployments.
+- Technical baseline: the same audited application core, deployed with customer-managed network isolation, key custody, backup, and operational controls.
+- Hardware-backed key custody and dedicated TPM channels are deployment integrations, not implied by device passthrough alone.
 
-## 2. High-Tier Commercial Subscription Contracts (ARR Model)
-
-### A. Tier-1: Enterprise Core Monolith License
-*   **Annual Recurring Revenue (ARR):** $250,000 per isolated cluster allocation.
-*   **Target Market:** High-frequency payment platforms, large-scale medical database clusters, and cloud-native server operations.
-*   **Core Operational Protections:**
-    *   **In-Memory Polymorphic Scrambler Loops:** Constantly alters the structural binary alignment of records inside volatile RAM, removing static string footprints.
-    *   **Automated Validation Moat:** Employs Abstract Syntax Tree (AST) code evaluations to parse network queries structurally, dropping multi-encoded exploits and query injections.
-    *   **Jitter Entropy Pools:** Ensures high-entropy AES-256-GCM key rotation metrics even when running on headless cloud hardware stripped of human input devices.
-
-### B. Tier-2: Defense Sovereign Enclave Matrix License
-*   **Annual Recurring Revenue (ARR):** $750,000 per air-gapped system block.
-*   **Target Market:** Aerospace applications, sovereign national infrastructure systems, automated robotics nodes, and government defense environments.
-*   **Core Operational Protections:**
-    *   **Hardware TPM 2.0 Silicon Binding (`/dev/tpmrm0`):** Securely seals active cryptographic variables to the motherboard hardware layout registers.
-    *   **Shield Guard Interceptor Overlap:** Employs parallel thread arrays to cover microsecond time gaps during shift rotations, providing non-stop validation continuity.
-    *   **Self-Healing Boot-Time Watchdog Loops:** Instantly resets key matrices and flushes register states if disk-level code signatures are altered by host escalation attacks.
-
----
-
-## 3. Financial Projections & ARR Compound Metrics
-A standard enterprise deployment deployment layout consists of 1 Core Node paired with 4 high-frequency satellite processing networks. 
-
-*   **Initial Annual Contract Value (ACV):** $1,250,000 to $3,750,000 per corporate client profile.
-*   **Gross Margin Capture:** 94% (driven by lightweight, zero-dependency, native Python micro-runtime optimization).
-*   **Expansion Pipeline Metric:** On-demand integration options with local hardware modules (like on-board robotics or edge AI engines) provide an extra 22% ARR multiplier per active cluster.
+## Operational notes
+- Capacity, availability, support response times, and SLA commitments require a signed contract and measured acceptance criteria.
+- The application does not claim protection from a compromised host administrator, memory inspection by a privileged host, or a malicious hypervisor.

@@ -1,34 +1,30 @@
 #!/usr/bin/env bash
-# =====================================================================
-# Krypticsoundz LLC - Automated Docker Environment Provisions
-# =====================================================================
-set -euo pipefail
-
-INSTALL_DIR="/opt/enkrypted"
-echo "=== INITIALIZING NKRYPTD DOCKER ENVIRONMENT VIA KRYPTICSOUNDZ LLC ==="
-
-# 1. Map target logging and database directory tracks on host disk
-sudo mkdir -p "$INSTALL_DIR/vault" "$INSTALL_DIR/logs"
-sudo chown -R 10002:10002 "$INSTALL_DIR"
-
-# 2. Check for physical TPM 2.0 module permissions 
-if [ -c "/dev/tpmrm0" ]; then
-    sudo chmod 660 /dev/tpmrm0
-    sudo chown root:10002 /dev/tpmrm0
-    echo "[PROVISIONS]: Local TPM hardware nodes verified and pass-through mapped."
+set -Eeuo pipefail
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$ROOT_DIR"
+command -v docker >/dev/null || { echo "Docker is required" >&2; exit 1; }
+docker compose version >/dev/null || { echo "Docker Compose v2 is required" >&2; exit 1; }
+if [ ! -f .env ]; then
+  token="$(python3 -c 'import secrets; print(secrets.token_urlsafe(48))')"
+  printf 'NKRYPTD_GATEWAY_TOKEN=%s\n' "$token" > .env
+  chmod 600 .env
+  echo "Created .env with a random gateway token (mode 0600). Keep it secret."
 fi
 
-# 3. Halt legacy singular sandbox containers if running to clear resource ports
-echo "-> Cleaning legacy runtime components..."
-sudo docker rm -f nkryptd-sentinel-active nkryptd-actuator-9999 nkryptd-gateway-incognito 2>/dev/null || true
-
-# 4. Boot up multi-service mesh layout via Docker Compose
-echo "-> Compiling image manifests and executing service mesh allocation..."
-sudo docker compose -f docker-compose.yml up -d --build
-
-echo ""
-echo "=== MULTI-SERVICE DOCKER DEPLOYMENT SUCCESSFUL ==="
-echo "  -> Sentinel Daemon Layer: ACTIVE"
-echo "  -> 9999.99 Actuator Threads: TUNED"
-echo "  -> Stealth Gateway Tunnel: LISTENING [Port 19999]"
-echo "================================================="
+echo "Building nkryptd services..."
+docker compose build --pull
+echo "Starting core, actuator, and WebSocket gateway..."
+docker compose up -d --remove-orphans
+echo "Waiting for core health check..."
+for attempt in $(seq 1 30); do
+  if docker compose exec -T nkryptd-core python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=2)" >/dev/null 2>&1; then
+    echo "nkryptd core is healthy; actuator listens internally on 8081; gateway listens on port 19999."
+    echo "Gateway token is stored in $ROOT_DIR/.env (do not commit or share it)."
+    docker compose ps
+    exit 0
+  fi
+  sleep 2
+done
+echo "Core did not become healthy. Recent logs:" >&2
+docker compose logs --tail=100 >&2
+exit 1

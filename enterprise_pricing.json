@@ -6,7 +6,7 @@
     "included_allocations": {
       "active_swarm_rotators": 32,
       "shield_guard_interceptors": 8,
-      "ast_node_validation_throughput": "Unlimited",
+      "ast_node_validation_throughput": "Unlimited (subject to contracted capacity)",
       "dedicated_tpm_channels": 4
     },
     "sla_tier": "Tier-1 Mission Critical 24/7/365 Direct Dev-Line"
@@ -18,8 +18,8 @@
     "included_allocations": {
       "active_swarm_rotators": 128,
       "shield_guard_interceptors": 32,
-      "ast_node_validation_throughput": "Asynchronous High-Frequency Burst",
-      "dedicated_tpm_channels": "Hardware Bonded / Full Bus Isolation"
+      "ast_node_validation_throughput": "Asynchronous High-Frequency Burst (subject to contracted capacity)",
+      "dedicated_tpm_channels": "Requires TPM provisioning and validation"
     },
     "sla_tier": "Strategic Continuity Protocol / Sovereign Network Isolation Support"
   }

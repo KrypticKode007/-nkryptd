@@ -1,0 +1,5 @@
+# GitHub Actions runner notes (not a workflow file).
+# Prefer GitHub-hosted runners in .github/workflows/ci.yml.
+# If a self-hosted runner is required, register it interactively using a fresh,
+# short-lived token from GitHub Settings > Actions > Runners. Never commit tokens.
+# Restrict the runner to trusted repositories and ephemeral/isolated workloads.

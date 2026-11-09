@@ -1,48 +1,20 @@
-# =====================================================================
-# STAGE 1: CRYPTOGRAPHIC DEPLOYMENT BUILDER
-# =====================================================================
 FROM python:3.11-slim AS builder
-
-WORKDIR /compiler_box
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    libc-dev \
-    libssl-dev \
-    && rm -rf /var/lib/apt/lists/*
-
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1 PYTHONDONTWRITEBYTECODE=1
+WORKDIR /build
 COPY requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
-# =====================================================================
-# STAGE 2: BOTTOMLESS PRODUCTION RUNTIME 
-# =====================================================================
-FROM python:3.11-slim AS runner
-
-WORKDIR /nkryptd_enclave
-
-# Install core TPM utilities for hardware pass-through integration
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    tpm2-tools \
-    && rm -rf /var/lib/apt/lists/*
-
-# Establish non-privileged operational user boundaries
-RUN groupadd -g 10002 defense_group && \
-    useradd -r -u 10002 -g defense_group defense_user
-
-# Pull compiled cryptography binaries from builder layer
-COPY --from=builder /root/.local /home/defense_user/.local
-COPY . .
-
-RUN chown -R defense_user:defense_group /nkryptd_enclave
-ENV PATH=/home/defense_user/.local/bin:$PATH
-
-USER defense_user
-
-# Automated container protection healthcheck loop
-HEALTHCHECK --interval=15s --timeout=3s --retries=3 \
-  CMD python3 -c "from headless_defense_monolith import HardenedASTPayloadMoat; \
-      moat = HardenedASTPayloadMoat(); \
-      assert moat.secure_parse_payload('health_check') == 'health_check'" || exit 1
-
+FROM python:3.11-slim AS runtime
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
+WORKDIR /app
+RUN groupadd --system --gid 10002 nkryptd && \
+    useradd --system --uid 10002 --gid nkryptd --home-dir /nonexistent --shell /usr/sbin/nologin nkryptd && \
+    mkdir -p /data && chown -R 10002:10002 /data
+COPY --from=builder /install /usr/local
+COPY --chown=10002:10002 headless_defense_monolith.py kryptic_9999_actuator.py kryptic_websocket_gateway.py ./
+USER 10002:10002
+ENV NKRYPTD_DATA_DIR=/data
+EXPOSE 8080 19999
+HEALTHCHECK --interval=20s --timeout=3s --start-period=5s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=2)" || exit 1
 CMD ["python", "headless_defense_monolith.py"]

@@ -1,72 +1,94 @@
-version: '3.8'
-
 services:
-  # ---------------------------------------------------------------------
-  # SERVICE 1: CORE SENTINEL DAEMON (Branch: main)
-  # ---------------------------------------------------------------------
   nkryptd-core:
     build:
       context: .
       dockerfile: Dockerfile.nkryptd
+    image: nkryptd:local
     container_name: nkryptd-sentinel-active
-    restart: always
+    restart: unless-stopped
     environment:
-      - ENVIRONMENT=PRODUCTION
-      - KEY_ROTATION_SPEED=MAX
+      NKRYPTD_DATA_DIR: /data
+      NKRYPTD_HOST: 0.0.0.0
+      NKRYPTD_PORT: 8080
     volumes:
-      - /opt/enkrypted/vault:/opt/enkrypted/vault
-      - /opt/enkrypted/logs:/opt/enkrypted/logs
-    devices:
-      - /dev/tpmrm0:/dev/tpmrm0 # Direct Hardware TPM 2.0 Silicon Binding Pass-through
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 256M
-    networks:
-      - nkryptd-isolated-mesh
-
-  # ---------------------------------------------------------------------
-  # SERVICE 2: HIGH-SPEED ACTUATOR (Branch: 9999.99-actuator)
-  # ---------------------------------------------------------------------
-  nkryptd-actuator:
-    build:
-      context: .
-      dockerfile: Dockerfile.nkryptd
-    container_name: nkryptd-actuator-9999
-    restart: always
-    command: ["python", "kryptic_9999_actuator.py"]
-    cpu_shares: 2048 # High-priority scheduling allocation for thread-pool tasks
-    deploy:
-      resources:
-        limits:
-          cpus: '2.0'
-          memory: 512M
-    networks:
-      - nkryptd-isolated-mesh
-
-  # ---------------------------------------------------------------------
-  # SERVICE 3: STEALTH GATEWAY TUNNEL (Branch: incognito-gateway)
-  # ---------------------------------------------------------------------
-  nkryptd-gateway:
-    build:
-      context: .
-      dockerfile: Dockerfile.nkryptd
-    container_name: nkryptd-gateway-incognito
-    restart: always
-    command: ["python", "kryptic_websocket_gateway.py"]
+      - nkryptd-data:/data
     ports:
-      - "19999:19999" # Exposes cloaked websocket listener port to authorized nodes
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 256M
-    networks:
-      - nkryptd-isolated-mesh
+      - "127.0.0.1:8080:8080"
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,noexec,nosuid
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=2)"]
+      interval: 20s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    networks: [nkryptd]
+
+  nkryptd-actuator:
+    image: nkryptd:local
+    container_name: nkryptd-actuator-9999
+    restart: unless-stopped
+    command: ["python", "kryptic_9999_actuator.py"]
+    environment:
+      NKRYPTD_DATA_DIR: /data
+      NKRYPTD_WORKERS: 8
+      NKRYPTD_ACTUATOR_HOST: 0.0.0.0
+      NKRYPTD_ACTUATOR_PORT: 8081
+    volumes:
+      - nkryptd-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,noexec,nosuid
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    depends_on:
+      nkryptd-core:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8081/healthz', timeout=2)"]
+      interval: 20s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    networks: [nkryptd]
+
+  nkryptd-gateway:
+    image: nkryptd:local
+    container_name: nkryptd-gateway-incognito
+    restart: unless-stopped
+    command: ["python", "kryptic_websocket_gateway.py"]
+    environment:
+      NKRYPTD_DATA_DIR: /data
+      NKRYPTD_GATEWAY_HOST: 0.0.0.0
+      NKRYPTD_GATEWAY_PORT: 19999
+      NKRYPTD_GATEWAY_TOKEN: ${NKRYPTD_GATEWAY_TOKEN:?Set NKRYPTD_GATEWAY_TOKEN in .env}
+    volumes:
+      - nkryptd-data:/data
+    ports:
+      - "19999:19999"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s=socket.create_connection(('127.0.0.1',19999),timeout=2); s.close()"]
+      interval: 20s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,noexec,nosuid
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    depends_on:
+      nkryptd-core:
+        condition: service_healthy
+    networks: [nkryptd]
+
+volumes:
+  nkryptd-data:
 
 networks:
-  nkryptd-isolated-mesh:
+  nkryptd:
     driver: bridge
-    internal: false # Permits external communication ingress exclusive to port 19999
-    

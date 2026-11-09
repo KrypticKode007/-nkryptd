@@ -1,67 +1,113 @@
 # nkryptd
 
-🏆 **nkryptd** is an industrial-strength, post-algorithmic monolithic security core engineered by **Krypticsoundz LLC** (Brandon Mark Wilson, Dinuba, CA). It establishes an autonomous, self-defending software enclave with "no bottom"—ensuring that even if an adversary gains root/administrator privileges on the host operating system, the underlying secure data reservoirs, internal text monologues, and cognitive state ledgers remain cryptographically opaque and structurally immutable. 🏆
+`nkryptd` is a Python service demonstrating validated event ingestion, concurrent event processing, a WebSocket transport, and an encrypted SQLite audit ledger. It is designed to run as three Docker services under an unprivileged UID.
 
----
+> **Security scope:** No container or Python process can guarantee secrecy from a hostile host administrator or hypervisor. AST parsing is not a general-purpose sandbox or SQL-injection defense. This project treats input as data, rejects a small set of obvious code-execution signatures, bounds message sizes, uses parameterized SQL, and encrypts ledger records with AES-256-GCM. Have the system independently reviewed before production use.
 
-## 🧬 Architectural Breakthrough Capabilities
+## What works
 
-Unlike legacy security models that rely on volatile perimeter firewalls and strict container fence isolation, `nkryptd` embeds protection directly into the runtime memory space and execution token loops:
+- **Core daemon (`main`)**: HTTP `GET /healthz` and `POST /v1/events`; JSON validation; encrypted, persistent SQLite ledger.
+- **Actuator (`9999.99-actuator`)**: bounded concurrent validation using a worker pool; HTTP `GET /healthz` and `POST /v1/events` on internal port `8081`.
+- **Gateway (`incognito-gateway`)**: WebSocket endpoint on port `19999`; standards-based handshake/frame handling via the `websockets` library; JSON event processing and JSON responses. Docker deployment requires a generated bearer token in each event as the `token` field.
+- **Encryption**: AES-256-GCM with a persistent 32-byte key stored in the data volume with restrictive permissions. Back up the key separately and securely; losing it makes ledger records unrecoverable.
+- **TPM**: the service reports whether `/dev/tpmrm0` exists. It does **not** claim to seal keys to the TPM. A real TPM key policy and provisioning workflow must be implemented and tested for the target hardware.
+- **CI**: GitHub-hosted Actions runs compilation and tests on Python 3.11 and 3.12. No self-hosted runner token is required.
 
-1. **Abstract Syntax Tree (AST) Inspection Moat**
-   Replaces unstable string-matching regular expressions with structural source syntax tree parsing. All incoming event traffic is validated as code topology trees, completely neutralizing sophisticated multi-encoded string bypasses, nested SQL commands, and directory traversals instantly.
-2. **In-Memory Polymorphic Scrambler Layer**
-   Defeats advanced process memory injection and RAM scraping loops. Text narratives and state variables are dynamically shuffled and masked using execution jitter timing fluctuations on every single loop tick, ensuring data profiles never occupy static or predictable contiguous memory spaces.
-3. **Headless Jitter Entropy Multiplexer**
-   Eliminates the threat of entropy starvation on headless, virtual cloud servers stripped of physical input devices. It harvests fine-grained CPU microarchitectural timing differences to fuel high-entropy cryptographic key rotation loops continuously.
-4. **Silicon TPM 2.0 Binding Matrix**
-   Directly seals active cryptographic keys to physical hardware motherboard registers (`/dev/tpmrm0`), rendering files stolen from disk entirely useless without hardware-validated execution authority.
-5. **Shield Guard Interceptor Array**
-   Deploys parallel, high-priority sentinel thread pools during worker shift rotations to guarantee continuous runtime validation with absolute zero microsecond gap exposure.
+## Repository branches
 
----
+All branches carry the complete tested application so they can be checked out and built independently. Branch-specific ownership is documented in `branches/`:
 
-## 🗂️ Multi-Branch Repository Architecture
+- `main`: core service, Docker Compose, deployment, and CI.
+- `9999.99-actuator`: concurrent actuator implementation and tests.
+- `incognito-gateway`: WebSocket gateway implementation and tests.
 
-The ecosystem splits operational capabilities across three distinct Git branches to ensure clean segregation of duties, zero cross-contamination, and continuous uptime:
+## Requirements
 
-*   **`main` (Autonomous Headless Core Daemon Layer):** Holds the master container orchestration manifests (`docker-compose.yml`), the automated hardware installation macro (`deploy.sh`), and the main self-healing sentinel loops.
-*   **`9999.99-actuator` (High-Speed Processing Line):** Contains the high-velocity concurrent thread pools allocated to run parallel manifest checks and payload parsing simultaneously with zero background CPU overhead.
-*   **`incognito-gateway` (Stealth Network Transport):** Houses the camouflaged WebSocket server that overrides classic network fingerprints by masquerading as standard generic HTTP index headers to unauthorized web crawlers.
+- Docker Engine and Docker Compose v2 for container deployment; or Python 3.11+ for local tests.
+- Linux with Docker is recommended for deployment. TPM hardware is optional and not activated by this configuration.
 
----
-
-## 🚀 One-Command Instant Machine Integration
-
-The entire deployment infrastructure has been compiled into a unified configuration matrix. Running this single-command macro from your terminal automatically clones the repository layouts, provisions directory permissions, binds the host system's hardware crypt-module, compiles the multi-stage non-root container image, and launches the isolated application sandbox instantly:
+## Run locally
 
 ```bash
-curl -sSL https://githubusercontent.com | bash
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install -r requirements.txt
+python -m unittest discover -s tests -v
+python test_gateway_traffic.py
 ```
 
----
-
-## 📊 Enterprise Commercial Contract Specifications (ARR)
-
-Optimized for high-value Annual Recurring Revenue (ARR) models, `nkryptd` provides enterprise environments and defense contractors with specialized protection tiers:
-
-*   **`ENTERPRISE_MONOLITH_CORE`** | **$250,000 USD ARR** per isolated network allocation block. Designed for high-frequency payment networks and mission-critical cloud enterprise servers.
-*   **`DEFENSE_SECURE_ENCLAVE_MATRIX`** | **$750,000 USD ARR** per air-gapped system block. Bonded for aerospace, automated robotics, and sovereign government network isolation environments.
-
----
-
-## 🧪 Verification & Active Integration Testing
-
-The repository packages a continuous end-to-end network validation test harness (`test_gateway_traffic.py`) to assert cryptographic boundaries under real-time load spikes:
+Start the core in one terminal:
 
 ```bash
-# Run local structural verification and socket ingestion test
-python3 test_gateway_traffic.py
+export NKRYPTD_DATA_DIR=./data
+python headless_defense_monolith.py
 ```
-*Successful execution yields 100% exploit neutralization across the AST payload moat engine with zero data leakage.*
 
----
+Submit an event in another terminal:
 
-## ⚖️ License
+```bash
+curl -sS http://127.0.0.1:8080/healthz
+curl -sS -X POST http://127.0.0.1:8080/v1/events \
+  -H 'Content-Type: application/json' \
+  -d '{"message":"hello nkryptd"}'
+```
 
-Distributed under the commercial and proprietary terms established by Krypticsoundz LLC. All rights reserved. 
+Start the WebSocket gateway separately:
+
+```bash
+NKRYPTD_DATA_DIR=./data python kryptic_websocket_gateway.py
+```
+
+Send a JSON object such as `{"message":"hello gateway"}` to `ws://127.0.0.1:19999` using any WebSocket client. In Docker deployments, include the generated `NKRYPTD_GATEWAY_TOKEN` from `.env` as the `token` field. Do not expose the gateway without authentication and TLS.
+
+Run the actuator HTTP service separately:
+
+```bash
+NKRYPTD_DATA_DIR=./data python kryptic_9999_actuator.py
+curl -sS -X POST http://127.0.0.1:8081/v1/events -H 'Content-Type: application/json' -d '{"message":"process this event"}'
+```
+
+## Docker deployment
+
+From the repository root:
+
+```bash
+./deploy.sh
+```
+
+This builds the image and starts core, actuator, and gateway. The core health endpoint is bound to localhost port `8080`; the actuator is internal on port `8081`; the authenticated WebSocket gateway is published on port `19999`. Protect the gateway with a TLS-terminating reverse proxy and authentication before exposing it to untrusted networks.
+
+Useful commands:
+
+```bash
+docker compose ps
+docker compose logs -f
+docker compose down
+```
+
+The named `nkryptd-data` volume contains the database and encryption key. `docker compose down -v` deletes it and makes encrypted records unrecoverable; do not use unless you intend to destroy the data.
+
+## Configuration
+
+See `.env.example`. The most important settings are `NKRYPTD_DATA_DIR`, `NKRYPTD_PORT`, `NKRYPTD_GATEWAY_PORT`, `NKRYPTD_GATEWAY_TOKEN`, and `NKRYPTD_MAX_MESSAGE_BYTES`.
+
+## GitHub Actions
+
+The workflow at `.github/workflows/ci.yml` uses GitHub-hosted runners and read-only repository permissions. `Actions_runner.yml` is informational only. Never store a runner registration token in Git.
+
+## Security limitations and production checklist
+
+- Use TLS, authentication, authorization, rate limiting, and network policy at the gateway boundary.
+- Store backups of `ledger.key` separately with strict access control. Rotate keys with a documented migration procedure; replacing the key alone will make old rows unreadable.
+- Configure TPM-backed key sealing separately if required; device passthrough is not TPM integration.
+- A compromised host administrator can inspect container memory, files, and devices. This software does not defeat host root.
+- The input validator is defense-in-depth only. Use parameterized database queries and context-specific output encoding in downstream applications.
+- Set resource limits, monitoring, backup retention, incident response, and independent penetration testing for production.
+
+## Commercial terms
+
+See [COMMERCIAL_ARR_PRICING.md](COMMERCIAL_ARR_PRICING.md). Pricing figures are commercial terms, not claims of independently verified performance.
+
+## License
+
+Proprietary. All rights reserved by Krypticsoundz LLC.
