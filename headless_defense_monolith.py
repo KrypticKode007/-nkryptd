@@ -1,66 +1,116 @@
 import os
 import sys
-import ast
-import sqlite3
-import hashlib
-import time
-import math
-from datetime import datetime
-from secrets import token_bytes
-from concurrent.futures import ThreadPoolExecutor
-import os
+import re
 import json
+import gc
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from scrambler import runtime_scrambler 
 
-class HeadlessDefenseHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        if self.path == "/healthz":
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(b'{"status":"healthy"}')
+# Static Pre-Ingestion Signatures: Allergic to known shellcode and injection heuristics
+MALICIOUS_SIGNATURES = [
+    re.compile(r'(?i)(union\s+select|select\s+.*\s+from|insert\s+into)'), # SQLi attempts
+    re.compile(r'(?i)(<script|javascript:|onerror=|onload=)'),          # XSS payloads
+    re.compile(r'(\.\./|\.\.\\)'),                                       # Path traversal sequences
+    re.compile(r'(\|\||&&|\$\(|\bexec\b|\bsystem\b|\bpassthru\b)')        # RCE/Shell injection primitives
+]
+
+class HeadlessDefenseMonolith(BaseHTTPRequestHandler):
+    
+    def log_message(self, format, *args):
+        """Overrides standard logging to prevent log-injection or string leaks."""
+        pass
+
+    def _execute_shaker_protocol(self, threat_signature: str):
+        """
+        THE SHAKER PROTOCOL
+        Acts like a dog shaking off water. Aggressively purges local process memory space,
+        unmaps ephemeral data structures, cycles runtime variables, and restarts cleanly.
+        """
+        print(f"\n[!!!] CRITICAL ALARM: ALLERGIC REACTION TRIGGERED BY SIGNATURE [{threat_signature}]")
+        print("[!] INITIATING SYSTEM SHAKER PROTOCOL...")
+
+        # 1. Sever external connections instantly by shutting down the active handler socket
+        try:
+            self.connection.shutdown(2) # 2 = SHUT_RDWR
+            self.connection.close()
+        except Exception:
+            pass
+
+        # 2. Overwrite and corrupt the ephemeral memory scrambler pool to invalidate leaked text
+        if hasattr(runtime_scrambler, '_pool'):
+            runtime_scrambler._pool = bytearray(os.urandom(len(runtime_scrambler._pool)))
+
+        # 3. Aggressive Scope Cleansing: Wipe global caches or state dictionaries if any exist
+        globals_to_purge = [k for k in globals().keys() if k.startswith('transient_')]
+        for key in globals_to_purge:
+            globals()[key] = None
+            del globals()[key]
+
+        print("[*] Shaking: Executing deterministic garbage collection sweeps...")
+        # 4. Force triple-cycle garbage collection to drop unreferenced objects from the heap
+        gc.set_threshold(0)
+        for _ in range(3):
+            gc.collect()
+
+        print("[+] Process memory space cleared. Re-spawning clean worker daemon state...")
+        # 5. Hot-reload: Re-execute the current process binary to restore a pristine state
+        os.execv(sys.executable, [sys.executable] + sys.argv)
 
     def do_POST(self):
         if self.path == "/v1/events":
             content_length = int(self.headers.get('Content-Length', 0))
-            if content_length > 1048576: # 1MB limit check
-                self.send_error(413, "Payload Too Large")
+            if content_length > 524288: # Tightened strict constraint: 512KB Max
+                self.send_error(413, "Payload Limits Exceeded")
                 return
 
-            # Read raw network buffer bytes
+            # Read raw data directly from the network buffer string
             raw_input = self.rfile.read(content_length).decode('utf-8')
-            
-            # CRITICAL: Immediately scramble the raw string in process memory
+
+            # --- PRE-INGESTION ALLERGY CHECK ---
+            for signature in MALICIOUS_SIGNATURES:
+                if signature.search(raw_input):
+                    # Threat detected prior to parsing: Execute the memory shake immediately
+                    del raw_input
+                    self._execute_shaker_protocol(signature.pattern)
+                    return
+
+            # Immediate scrambling upon passing structural validation
             scrambled_payload = runtime_scrambler.scramble(raw_input)
-            del raw_input # Force garbage collection of the plain memory reference
-            
-            print(f"[*] Memory profile secured. Scrambled bytes: {scrambled_payload[:20]}...")
+            del raw_input
 
             try:
-                # Descramble strictly within localized transient scope for processing
+                # Localized, transient scope execution block
                 decrypted_json = json.loads(runtime_scrambler.descramble(scrambled_payload))
                 
-                # ... Perform JSON schema validation & AES-256-GCM ledger writes here ...
-                
+                # Verify structural anomaly defenses
+                if "token" not in decrypted_json and "message" not in decrypted_json:
+                    del scrambled_payload
+                    del decrypted_json
+                    self._execute_shaker_protocol("ANOMALOUS_PAYLOAD_SCHEMA")
+                    return
+
+                # Normal pipeline operational path continues safely here...
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
                 self.wfile.write(b'{"status":"event_processed"}')
-                
-            except json.JSONDecodeError:
-                self.send_error(400, "Invalid JSON Payload")
-            except Exception as e:
-                self.send_error(500, "Internal Cryptographic Ledger Error")
 
-def run_daemon(port=8080):
-    server = HTTPServer(('0.0.0.0', port), HeadlessDefenseHandler)
-    print(f"[+] Protected Headless Daemon running on port {port}...")
-    server.serve_forever()
+            except json.JSONDecodeError:
+                self.send_error(400, "Malformed Structure")
+            except Exception:
+                self._execute_shaker_protocol("UNHANDLED_RUNTIME_EXCEPTION")
+
+def run_hardened_monolith(port=8080):
+    try:
+        server = HTTPServer(('0.0.0.0', port), HeadlessDefenseMonolith)
+        print(f"[+] Allergic Defense Monolith online on internal port {port}...")
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("[-] Stopping service.")
 
 if __name__ == "__main__":
-    run_daemon()
-    
+    run_hardened_monolith()
+
 try:
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
     HAS_AESGCM = True
